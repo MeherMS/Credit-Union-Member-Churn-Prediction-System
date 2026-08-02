@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: credit-union-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: MONGODB_URL
+        scope: secret
+      - key: MONGODB_DB_NAME
+        value: Credit_Union_Member_Churn
+      - key: MONGODB_COLLECTION_NAME
+        value: Credit_Union_Member_Churn
+      - key: MODEL_PATH
+        value: models/churn_model.joblib
+      - key: CORS_ORIGINS
+        value: "*"

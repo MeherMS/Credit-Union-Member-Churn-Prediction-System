@@ -17,3 +17,4 @@ openpyxl
 shap
 httpx
 pytest
+python-multipart
