@@ -105,20 +105,18 @@ export default function MemberDetailPage() {
           <div className="lg:col-span-2 space-y-8">
             {/* Member Info */}
             <MemberInfoCard
-              member={{
-                member_id: data.member_id,
-                age: data.age,
-                gender: data.gender,
-                country: data.country,
-                credit_score: data.credit_score,
-                balance: data.balance,
-                estimated_salary: data.estimated_salary,
-                tenure: data.tenure,
-                products_number: data.products_number,
-                credit_card: data.credit_card,
-                active_member: data.active_member,
-              }}
-            />
+  memberId={parseInt(data.member_id, 10)}  // Convert string to number
+  name={`Member ${data.member_id}`}  // Or get actual name if available
+  age={data.age}
+  gender={data.gender}
+  country={data.country}
+  creditScore={data.credit_score}
+  tenure={data.tenure}
+  balance={data.balance}
+  salary={data.estimated_salary}  // Change from estimatedSalary to salary
+  productsNumber={data.products_number}
+  activeStatus={data.active_member === 1}  // Convert 1/0 to boolean
+/>
 
             {/* Churn Risk Gauge */}
             <div className="bg-white rounded-lg shadow p-6">

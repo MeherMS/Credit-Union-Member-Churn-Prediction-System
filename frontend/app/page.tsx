@@ -65,7 +65,7 @@ export default function Dashboard() {
   };
 
   const summary = {
-    total_members: safeNumber(data.summary.total),
+    total_members: safeNumber(data.summary.members),
     high_risk: safeNumber(data.summary.high_risk),
     medium_risk: safeNumber(data.summary.medium_risk),
     low_risk: safeNumber(data.summary.low_risk),

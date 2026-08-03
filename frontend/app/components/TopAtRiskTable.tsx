@@ -16,7 +16,14 @@ interface Member {
 }
 
 interface TopAtRiskTableProps {
-  members: Member[];
+  members: Array<{
+    member_id: string;
+    age: number;
+    country: string;
+    balance: number;
+    risk_bucket: string;
+    churn_probability: number;
+  }>;
 }
 
 export default function TopAtRiskTable({ members }: TopAtRiskTableProps) {
@@ -54,9 +61,9 @@ export default function TopAtRiskTable({ members }: TopAtRiskTableProps) {
           </thead>
           <tbody className="divide-y divide-gray-200">
             {members.map((member) => (
-              <tr key={member.customer_id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 text-sm text-gray-900">#{member.customer_id}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{member.surname}</td>
+              <tr key={member.member_id} className="hover:bg-gray-50 transition">
+                <td className="px-6 py-4 text-sm text-gray-900">#{member.member_id}</td>
+                <td className="px-6 py-4 text-sm text-gray-900">{member.member_id}</td>
                 <td className="px-6 py-4 text-sm text-gray-600">{member.age}</td>
                 <td className="px-6 py-4 text-sm text-gray-600">{member.country}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">
@@ -73,7 +80,7 @@ export default function TopAtRiskTable({ members }: TopAtRiskTableProps) {
                 </td>
                 <td className="px-6 py-4 text-sm">
                   <Link
-                    href={`/members/${member.customer_id}`}
+                    href={`/members/${member.member_id}`}
                     className="text-blue-600 hover:text-blue-800 font-medium"
                   >
                     View
