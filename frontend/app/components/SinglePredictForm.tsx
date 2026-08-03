@@ -30,7 +30,7 @@ export default function SinglePredictForm() {
     }));
   };
 
-  const handleRadioChange = (name: string, value: number) => {
+  const handleRadioChange = (name: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
