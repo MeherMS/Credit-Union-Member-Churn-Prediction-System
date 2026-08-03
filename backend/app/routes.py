@@ -3,6 +3,10 @@ import asyncio
 from fastapi import APIRouter, File, UploadFile, Query, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.responses import StreamingResponse
+from app.models import PredictRequest
+from datetime import datetime
+from typing import List
+import uuid
 
 from datetime import datetime
 import pandas as pd
@@ -209,6 +213,115 @@ async def get_bulk_prediction_status(job_id: str):
     except Exception as e:
         logger.error(f"Error fetching job status: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/predict-single", response_model=dict)
+async def predict_single_member(request: PredictRequest):
+    """
+    Single member prediction with storage to MongoDB.
+    
+    Input: 
+        - credit_score (int)
+        - country (str): 'France', 'Germany', 'Spain'
+        - gender (str): 'M' or 'F'
+        - age (int)
+        - tenure (int)
+        - balance (float)
+        - products_number (int)
+        - credit_card (int): 0 or 1
+        - active_member (int): 0 or 1
+        - estimated_salary (float)
+    
+    Output:
+        - member_id (str): Unique ID for this prediction
+        - churn_probability (float): 0.0-1.0
+        - risk_bucket (str): High Risk, Medium Risk, Low Risk, Safe
+        - days_to_churn (int or null)
+        - prediction (int): 1=churn, 0=no churn
+        - top_risk_factors (list): Top 3 factors
+    
+    Side Effect: Stores prediction to MongoDB
+    """
+    try:
+        logger.info(f"Single prediction request: age={request.age}, country={request.country}")
+        
+        # Convert request to dictionary
+        features_dict = request.dict()
+        
+        # Preprocess features (one-hot encode + scale)
+        processed_features = MLPipeline.preprocess_features(features_dict)
+        
+        # Get prediction from model
+        prediction = MLPipeline.model.predict(processed_features)[0]
+        probability = MLPipeline.model.predict_proba(processed_features)[0][1]
+        
+        logger.info(f"Model prediction: {probability:.4f}")
+        
+        # Determine risk bucket and days to churn
+        if probability >= 0.7:
+            risk_bucket = "High Risk"
+            days_to_churn = 14
+        elif probability >= 0.5:
+            risk_bucket = "Medium Risk"
+            days_to_churn = 45
+        elif probability >= 0.3:
+            risk_bucket = "Low Risk"
+            days_to_churn = 80
+        else:
+            risk_bucket = "Safe"
+            days_to_churn = None
+        
+        # Get top risk factors
+        top_risk_factors = MLPipeline.get_top_risk_factors(processed_features, top_n=3)
+        
+        # Generate unique member ID
+        member_id = f"MEM_{uuid.uuid4().hex[:8].upper()}"
+        member_name = f"Member {member_id}"
+        
+        # Prepare data for MongoDB storage
+        prediction_data = {
+            "member_id": member_id,
+            "member_name": member_name,
+            # Original input features
+            "credit_score": request.credit_score,
+            "country": request.country,
+            "gender": request.gender,
+            "age": request.age,
+            "tenure": request.tenure,
+            "balance": request.balance,
+            "products_number": request.products_number,
+            "credit_card": request.credit_card,
+            "active_member": request.active_member,
+            "estimated_salary": request.estimated_salary,
+            # Prediction results
+            "prediction": int(prediction),
+            "churn_probability": float(probability),
+            "risk_bucket": risk_bucket,
+            "days_to_churn": days_to_churn,
+            "top_risk_factors": top_risk_factors,
+            "created_at": datetime.utcnow()
+        }
+        
+        # Store to MongoDB
+        result = await MongoDBManager.insert_prediction(prediction_data)
+        logger.info(f"Prediction stored: {member_id}")
+        
+        # Return response
+        return {
+            "success": True,
+            "member_id": member_id,
+            "member_name": member_name,
+            "churn_probability": round(float(probability), 4),
+            "risk_bucket": risk_bucket,
+            "days_to_churn": days_to_churn,
+            "prediction": int(prediction),
+            "top_risk_factors": top_risk_factors,
+            "message": f"Prediction completed. Member ID: {member_id}"
+        }
+    
+    except Exception as e:
+        logger.error(f"Single prediction error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Prediction failed: {str(e)}")
 
 @router.get("/bulk_predict/{job_id}/download")
 async def download_bulk_results(job_id: str):
@@ -417,6 +530,83 @@ async def generate_report(request: ReportGenerateRequest):
         raise
     except Exception as e:
         logger.error(f"Error generating report: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    
+from datetime import datetime
+
+@router.post("/predict-single", response_model=dict)
+async def predict_single_member(request: PredictRequest):
+    """
+    Single member prediction with storage to MongoDB.
+    
+    Input: Member features via form/JSON
+    Output: Prediction + risk bucket + days to churn
+    Side Effect: Stores prediction to MongoDB
+    """
+    try:
+        logger.info(f"Single prediction request received")
+        
+        # Convert request to dict
+        features_dict = request.dict()
+        
+        # Preprocess features (one-hot encode + scale)
+        processed_features = MLPipeline.preprocess_features(features_dict)
+        
+        # Get prediction
+        prediction = MLPipeline.model.predict(processed_features)[0]
+        probability = MLPipeline.model.predict_proba(processed_features)[0][1]
+        
+        # Determine risk bucket
+        if probability >= 0.7:
+            risk_bucket = "High Risk"
+            days_to_churn = 14
+        elif probability >= 0.5:
+            risk_bucket = "Medium Risk"
+            days_to_churn = 45
+        elif probability >= 0.3:
+            risk_bucket = "Low Risk"
+            days_to_churn = 80
+        else:
+            risk_bucket = "Safe"
+            days_to_churn = None
+        
+        # Get feature importance (top 3 factors)
+        top_risk_factors = MLPipeline.get_top_risk_factors(processed_features, top_n=3)
+        
+        # Generate unique member ID
+        import uuid
+        member_id = f"MEM_{uuid.uuid4().hex[:8].upper()}"
+        
+        # Prepare data for MongoDB storage
+        prediction_data = {
+            "member_id": member_id,
+            "member_name": f"Member {member_id}",
+            **features_dict,  # Include all input features
+            "prediction": int(prediction),
+            "churn_probability": float(probability),
+            "risk_bucket": risk_bucket,
+            "days_to_churn": days_to_churn,
+            "top_risk_factors": top_risk_factors,
+            "created_at": datetime.utcnow()
+        }
+        
+        # Store to MongoDB
+        await MongoDBManager.store_prediction(prediction_data)
+        
+        logger.info(f"Prediction stored: {member_id}")
+        
+        return {
+            "member_id": member_id,
+            "churn_probability": probability,
+            "risk_bucket": risk_bucket,
+            "days_to_churn": days_to_churn,
+            "prediction": int(prediction),
+            "top_risk_factors": top_risk_factors,
+            "message": f"Prediction stored with ID: {member_id}"
+        }
+    
+    except Exception as e:
+        logger.error(f"Single prediction error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     """
     Generate an executive report (PDF or XLSX).

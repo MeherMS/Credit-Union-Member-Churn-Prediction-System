@@ -172,59 +172,63 @@ class MLPipeline:
     @staticmethod
     def batch_predict(df: pd.DataFrame):
         """
-    Predict churn for multiple members (bulk prediction).
-    
-    Input: pandas DataFrame with columns:
-        credit_score, country, gender, age, tenure, balance,
-        products_number, credit_card, active_member, estimated_salary
-    
-    Output: DataFrame with original data + predictions
+        Predict churn for multiple members (bulk prediction).
         """
         try:
         # Make a copy to avoid modifying original
             df_copy = df.copy()
+    
+        # ✅ ADD MEMBER ID & NAME (BEFORE PROCESSING)
+        # Generate unique member IDs
+            df_copy['member_id'] = ['MEM_' + str(i).zfill(5) for i in range(len(df_copy))]
         
+        # Add member name (use generated name or from CSV if available)
+            if 'name' not in df_copy.columns:
+                df_copy['member_name'] = 'Member ' + df_copy['member_id']
+            else:
+                df_copy['member_name'] = df_copy['name']
+    
         # Expected feature order for model
             feature_order = [
             'age', 'estimated_salary', 'tenure', 'credit_score', 'balance',
             'products_number', 'country_Germany', 'active_member', 'gender_Female',
             'country_France', 'country_Spain', 'credit_card', 'gender_Male'
             ]
-        
+    
         # Initialize processed features
             processed_features = {}
-        
+    
         # Copy numerical features as-is
             for col in ['age', 'estimated_salary', 'tenure', 'credit_score', 'balance', 
-                    'products_number', 'active_member', 'credit_card']:
+                'products_number', 'active_member', 'credit_card']:
                 if col not in df_copy.columns:
                     raise ValueError(f"Missing required column: {col}")
                 processed_features[col] = df_copy[col]
-        
+    
         # One-hot encode country
             if 'country' not in df_copy.columns:
                 raise ValueError("Missing required column: country")
             processed_features['country_Germany'] = (df_copy['country'] == 'Germany').astype(int)
             processed_features['country_France'] = (df_copy['country'] == 'France').astype(int)
             processed_features['country_Spain'] = (df_copy['country'] == 'Spain').astype(int)
-        
+    
         # One-hot encode gender
             if 'gender' not in df_copy.columns:
                 raise ValueError("Missing required column: gender")
             processed_features['gender_Female'] = (df_copy['gender'] == 'F').astype(int)
             processed_features['gender_Male'] = (df_copy['gender'] == 'M').astype(int)
-        
+    
         # Create DataFrame with processed features in correct order
             df_processed = pd.DataFrame(processed_features)[feature_order]
-        
+    
         # Get predictions
             predictions = MLPipeline.model.predict(df_processed)
             probabilities = MLPipeline.model.predict_proba(df_processed)[:, 1]
-        
+    
         # Determine risk buckets
             risk_buckets = []
             days_to_churn_list = []
-        
+    
             for prob in probabilities:
                 if prob >= 0.7:
                     risk_buckets.append("High Risk")
@@ -238,8 +242,15 @@ class MLPipeline:
                 else:
                     risk_buckets.append("Safe")
                     days_to_churn_list.append(None)
-        
+    
+        # ✅ ADD PREDICTIONS BACK TO DATAFRAME
+            df_copy['prediction'] = predictions.astype(int)
+            df_copy['churn_probability'] = probabilities
+            df_copy['risk_bucket'] = pd.Series(risk_buckets, index=df_copy.index)
+            df_copy['days_to_churn'] = pd.Series(days_to_churn_list, index=df_copy.index)
+    
             return df_copy
     
         except Exception as e:
-            raise ValueError(f"Batch prediction failed: {str(e)}")
+            logger.error(f"Batch prediction error: {e}")
+            raise

@@ -40,6 +40,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           <Link
             href="/upload"
+            className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${isActive('/predict-single')}`}
+          >
+            <Upload size={20} />
+            <span>Single Predict</span>
+          </Link>
+
+          <Link
+            href="/upload"
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${isActive('/upload')}`}
           >
             <Upload size={20} />
