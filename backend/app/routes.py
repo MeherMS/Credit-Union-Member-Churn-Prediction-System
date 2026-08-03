@@ -328,6 +328,12 @@ async def get_risk_distribution():
         # Fetch all predictions
         all_predictions = await MongoDBManager.get_all_predictions(limit=10000)
         
+        logger.info(f"Fetched {len(all_predictions)} predictions from DB")
+        
+        # Log first record for debugging
+        if all_predictions:
+            logger.info(f"First record structure: {all_predictions[0]}")
+        
         # Remove _id field
         for pred in all_predictions:
             pred.pop('_id', None)
@@ -353,8 +359,6 @@ async def get_risk_distribution():
     except Exception as e:
         logger.error(f"Error getting risk distribution: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-        # ==================== REPORT GENERATION ====================
-
 
 
 @router.post("/report/generate")

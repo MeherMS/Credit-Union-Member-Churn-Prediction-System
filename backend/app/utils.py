@@ -161,11 +161,34 @@ class RiskBucketAnalyzer:
 
     @staticmethod
     def get_top_at_risk_members(predictions: list, top_n: int = 10) -> list:
-        """Get top N at-risk members"""
+        """
+        Get top N members at risk of churn.
+        Returns: list of members sorted by churn probability
+        """
         try:
+            # Handle empty list
+            if not predictions:
+                return []
+        
+            # Convert to DataFrame
             df = pd.DataFrame(predictions)
-            top = df.nlargest(top_n, 'churn_probability').to_dict('records')
-            return top
+        
+            # Validate required column exists
+            if 'churn_probability' not in df.columns:
+                logger.error(f"Available columns: {df.columns.tolist()}")
+                raise ValueError("'churn_probability' column not found in predictions data")
+        
+            # Convert to numeric
+            df['churn_probability'] = pd.to_numeric(df['churn_probability'], errors='coerce')
+        
+            # Sort and get top N
+            top_members = df.nlargest(top_n, 'churn_probability')
+        
+            # Convert back to list of dicts
+            result = top_members.to_dict('records')
+        
+            logger.info(f"Top at-risk members: {len(result)} found")
+            return result
         except Exception as e:
             logger.error(f"Error getting top at-risk members: {e}")
             raise
