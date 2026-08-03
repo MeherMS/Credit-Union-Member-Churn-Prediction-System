@@ -39,7 +39,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <Link
-            href="/upload"
+            href="/predict-single"
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${isActive('/predict-single')}`}
           >
             <Upload size={20} />
