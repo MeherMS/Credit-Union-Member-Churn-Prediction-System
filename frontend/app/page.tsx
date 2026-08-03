@@ -7,13 +7,17 @@ import RiskDistributionChart from '@/app/components/RiskDistributionChart';
 import TopAtRiskTable from '@/app/components/TopAtRiskTable';
 import { useDashboardData } from '@/app/hooks/useDashboardData';
 import { AlertTriangle, Users, TrendingUp } from 'lucide-react';
-
+import { useTimeoutWarning } from '@/app/hooks/useTimeoutWarning';
+import { TimeoutWarning } from '@/app/components/TimeoutWarning';
 export default function Dashboard() {
   const { data, loading, error } = useDashboardData();
+  const { showWarning, elapsedTime } = useTimeoutWarning(loading);
 
   if (loading) {
     return (
       <Layout>
+          <TimeoutWarning isVisible={showWarning} elapsedSeconds={elapsedTime} />
+          <div className="flex items-center justify-center min-h-screen"></div>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>

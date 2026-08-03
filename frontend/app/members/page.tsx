@@ -5,6 +5,8 @@ import Layout from '@/app/components/Layout';
 import { useMembersData } from '@/app/hooks/useMembersData';
 import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { useTimeoutWarning } from '@/app/hooks/useTimeoutWarning';
+import { TimeoutWarning } from '@/app/components/TimeoutWarning';
 
 export default function MembersPage() {
   const [page, setPage] = useState(0);
@@ -16,18 +18,7 @@ export default function MembersPage() {
   const skip = page * limit;
 
   const { data, loading, error } = useMembersData(skip, limit, riskFilter, countryFilter);
-  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
-
-  useEffect(() => {
-    // Show timeout warning after 5 seconds of loading
-    if (loading && !data) {
-      const timeoutId = setTimeout(() => {
-        setShowTimeoutWarning(true);
-      }, 5000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [loading, data]);
-
+  const { showWarning, elapsedTime } = useTimeoutWarning(loading);
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
@@ -59,41 +50,20 @@ export default function MembersPage() {
   if (loading && !data) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading members...</p>
-            {showTimeoutWarning && (
-              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-sm">
-                <p className="text-sm text-yellow-800">
-                  ⏳ This is taking longer than usual. The backend server might be slow or unavailable.
-                </p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
+        <>
+          <TimeoutWarning isVisible={showWarning} elapsedSeconds={elapsedTime} />
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading members...</p>
+            </div>
           </div>
-        </div>
+        </>
       </Layout>
     );
   }
 
-  if (loading && !data) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading members...</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  
 
   if (error) {
     return (

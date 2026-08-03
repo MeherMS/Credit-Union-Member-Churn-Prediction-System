@@ -10,22 +10,27 @@ import { useMemberProfile } from '@/app/hooks/useMemberProfile';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useTimeoutWarning } from '@/app/hooks/useTimeoutWarning';
+import { TimeoutWarning } from '@/app/components/TimeoutWarning';
 
 export default function MemberDetailPage() {
   const params = useParams();
   const memberId = params.id as string;
 
   const { data, loading, error } = useMemberProfile(memberId);
-
+  const { showWarning, elapsedTime } = useTimeoutWarning(loading);
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading member profile...</p>
+        <>
+          <TimeoutWarning isVisible={showWarning} elapsedSeconds={elapsedTime} />
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading member profile...</p>
+            </div>
           </div>
-        </div>
+        </>
       </Layout>
     );
   }
