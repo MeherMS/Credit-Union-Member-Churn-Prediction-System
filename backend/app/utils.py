@@ -124,16 +124,35 @@ class RiskBucketAnalyzer:
         Returns: dict with counts by risk level
         """
         try:
+        # Handle empty list
+            if not predictions:
+                return {
+                "high_risk": 0,
+                "medium_risk": 0,
+                "low_risk": 0,
+                "safe": 0,
+                "members": 0,
+                }
+        
+            # Convert to DataFrame
             df = pd.DataFrame(predictions)
-            
+        
+            # Validate required column exists
+            if 'churn_probability' not in df.columns:
+                logger.error(f"Available columns: {df.columns.tolist()}")
+                raise ValueError("'churn_probability' column not found in predictions data")
+        
+            # Convert to numeric (in case it's stored as string)
+            df['churn_probability'] = pd.to_numeric(df['churn_probability'], errors='coerce')
+        
             summary = {
-                "high_risk": len(df[df['churn_probability'] >= 0.7]),
-                "medium_risk": len(df[(df['churn_probability'] >= 0.5) & (df['churn_probability'] < 0.7)]),
-                "low_risk": len(df[(df['churn_probability'] >= 0.3) & (df['churn_probability'] < 0.5)]),
-                "safe": len(df[df['churn_probability'] < 0.3]),
-                "total": len(df),
+            "high_risk": int(len(df[df['churn_probability'] >= 0.7])),
+            "medium_risk": int(len(df[(df['churn_probability'] >= 0.5) & (df['churn_probability'] < 0.7)])),
+            "low_risk": int(len(df[(df['churn_probability'] >= 0.3) & (df['churn_probability'] < 0.5)])),
+            "safe": int(len(df[df['churn_probability'] < 0.3])),
+            "members": int(len(df)),
             }
-            
+        
             logger.info(f"Risk summary: {summary}")
             return summary
         except Exception as e:
