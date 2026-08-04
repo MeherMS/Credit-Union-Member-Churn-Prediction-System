@@ -4,7 +4,23 @@ from io import StringIO, BytesIO
 from typing import List, Dict
 import pandas as pd
 import uuid
+import numpy as np
 
+def convert_nan_to_none(obj):
+    """
+    Recursively convert all NaN/Inf values to None for JSON serialization.
+    Handles dicts, lists, and floats.
+    """
+    if isinstance(obj, dict):
+        return {k: convert_nan_to_none(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_nan_to_none(item) for item in obj]
+    elif isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    else:
+        return obj
 logger = logging.getLogger(__name__)
 
 class FileHandler:

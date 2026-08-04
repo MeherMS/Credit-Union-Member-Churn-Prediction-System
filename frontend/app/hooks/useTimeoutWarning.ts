@@ -16,7 +16,7 @@ export const useTimeoutWarning = (isLoading: boolean) => {
     // Show warning after 8 seconds
     const warningTimer = setTimeout(() => {
       setShowWarning(true);
-    }, 8000);
+    }, 4500);
 
     // Update elapsed time every second
     const interval = setInterval(() => {

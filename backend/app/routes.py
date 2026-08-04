@@ -380,6 +380,8 @@ async def get_member_profile(member_id: str):
         raise HTTPException(status_code=400, detail=str(e))
 # ==================== MEMBERS LIST ====================
 
+from app.utils import convert_nan_to_none  # Add this import at top
+
 @router.get("/members")
 async def get_members_list(
     skip: int = Query(0, ge=0),
@@ -419,6 +421,9 @@ async def get_members_list(
         # Remove MongoDB _id field
         for member in paginated:
             member.pop('_id', None)
+        
+        # Convert NaN to None for JSON serialization
+        paginated = convert_nan_to_none(paginated)
         
         return {
             "total": len(members),
