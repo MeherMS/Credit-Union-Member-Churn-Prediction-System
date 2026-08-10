@@ -15,13 +15,29 @@ import numpy as np
 from app.models import (
     PredictRequest, PredictionResponse, MemberProfile,
     BulkPredictRequest, BulkPredictResponse, HealthResponse,
-    ReportGenerateRequest, ReportGenerateResponse
+    ReportGenerateRequest, ReportGenerateResponse, HouseholdResponse,
+    HouseholdsListResponse,
+    CohortCharacteristics,
+    CohortRiskProfile,
+    CohortResponse,
+    AllCohortsResponse,
+    MemberCohortAssignment,
+    CohortMembersResponse
 )
 from app.ml_pipeline import MLPipeline
 from app.database import MongoDBManager
 from app.report_generator import ReportGenerator
 from app.utils import FileHandler, JobManager, RiskBucketAnalyzer
 from app.config import settings
+from motor.motor_asyncio import AsyncIOMotorClient
+from typing import Optional, List, Dict, Any
+
+
+
+def set_mongodb_client(mongo_client: AsyncIOMotorClient):
+    """Set MongoDB client from main.py"""
+    global client
+    client = mongo_client
 
 
 def convert_nan_to_none(obj):
@@ -613,6 +629,295 @@ async def predict_single_member(request: PredictRequest):
     except Exception as e:
         logger.error(f"Single prediction error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ========== HOUSEHOLD ENDPOINTS ==========
+
+@router.get("/households", response_model=HouseholdsListResponse)
+async def get_households(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    risk_level: Optional[str] = Query(None),
+    sort_by: str = Query("risk", regex="^(risk|value)$")
+):
+    """
+    Get paginated list of households.
+    
+    Query Parameters:
+    - skip: Number of households to skip (default: 0)
+    - limit: Number of households per page (default: 10, max: 100)
+    - risk_level: Filter by risk level (High Risk, Medium Risk, Low Risk, Safe)
+    - sort_by: Sort by 'risk' or 'value' (default: risk)
+    
+    Returns:
+        Paginated list of households with summaries
+    """
+    try:
+        db = MongoDBManager.database
+        collection = db['households']
+        
+        # Build filter
+        filter_dict = {}
+        if risk_level:
+            filter_dict['risk_bucket'] = risk_level
+        
+        # Get total count
+        total = await collection.count_documents(filter_dict)
+        
+        # Determine sort order
+        if sort_by == "risk":
+            sort_field = [("weighted_churn_probability", -1)]  # High risk first
+        else:  # sort_by == "value"
+            sort_field = [("combined_balance", -1)]  # High balance first
+        
+        # Fetch paginated results
+        cursor = collection.find(filter_dict).sort(sort_field).skip(skip).limit(limit)
+        households_list = await cursor.to_list(length=limit)
+        
+        # Remove MongoDB _id field
+        for hh in households_list:
+            hh.pop('_id', None)
+        
+        # Calculate page number
+        page = (skip // limit) + 1 if limit > 0 else 1
+        
+        return HouseholdsListResponse(
+            total=total,
+            page=page,
+            limit=limit,
+            households=households_list
+        )
+    
+    except Exception as e:
+        logger.error(f"Error fetching households: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/household/{household_id}", response_model=HouseholdResponse)
+async def get_household_detail(household_id: str):
+    """
+    Get detailed information about a specific household.
+    
+    Path Parameters:
+    - household_id: Household identifier (e.g., HH000001)
+    
+    Returns:
+        Complete household record with all members and metrics
+    """
+    try:
+        db = MongoDBManager.database
+        collection = db['households']
+        
+        household = await collection.find_one({'household_id': household_id})
+        
+        if not household:
+            raise HTTPException(status_code=404, detail=f"Household {household_id} not found")
+        
+        household.pop('_id', None)
+        
+        return HouseholdResponse(**household)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching household detail: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ========== COHORT ENDPOINTS ==========
+
+@router.get("/cohorts", response_model=AllCohortsResponse)
+async def get_all_cohorts():
+    """
+    Get all cohort definitions with profiles.
+    
+    Returns:
+        All 6 cohorts with characteristics and risk profiles
+    """
+    try:
+        db = MongoDBManager.database
+        collection = db['cohorts']
+        
+        # Fetch all cohorts, sorted by ID
+        cursor = collection.find({}).sort('cohort_id', 1)
+        cohorts_list = await cursor.to_list(length=None)
+        
+        if not cohorts_list:
+            raise HTTPException(status_code=404, detail="No cohorts found")
+        
+        # Remove MongoDB _id field
+        for cohort in cohorts_list:
+            cohort.pop('_id', None)
+        
+        # Count total members across all cohorts
+        total_members = sum([c['characteristics']['member_count'] for c in cohorts_list])
+        
+        return AllCohortsResponse(
+            total_cohorts=len(cohorts_list),
+            total_members=total_members,
+            cohorts=cohorts_list
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching cohorts: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/cohort/{cohort_id}", response_model=CohortResponse)
+async def get_cohort_detail(cohort_id: int):
+    """
+    Get detailed information about a specific cohort.
+    
+    Path Parameters:
+    - cohort_id: Cohort identifier (0-5)
+    
+    Returns:
+        Cohort profile with characteristics and risk profile
+    """
+    try:
+        db = MongoDBManager.database
+        collection = db['cohorts']
+        
+        cohort = await collection.find_one({'cohort_id': cohort_id})
+        
+        if not cohort:
+            raise HTTPException(status_code=404, detail=f"Cohort {cohort_id} not found")
+        
+        cohort.pop('_id', None)
+        
+        return CohortResponse(**cohort)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching cohort detail: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/cohort/{cohort_id}/members", response_model=CohortMembersResponse)
+async def get_cohort_members(
+    cohort_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100)
+):
+    """
+    Get paginated list of members in a specific cohort.
+    
+    Path Parameters:
+    - cohort_id: Cohort identifier (0-5)
+    
+    Query Parameters:
+    - skip: Number of members to skip (default: 0)
+    - limit: Members per page (default: 10, max: 100)
+    
+    Returns:
+        Paginated list of members with cohort assignments
+    """
+    try:
+        db = MongoDBManager.database
+        
+        # Get cohort info
+        cohorts_collection = db['cohorts']
+        cohort = await cohorts_collection.find_one({'cohort_id': cohort_id})
+        
+        if not cohort:
+            raise HTTPException(status_code=404, detail=f"Cohort {cohort_id} not found")
+        
+        # Get members in this cohort
+        assignments_collection = db['member_cohort_assignments']
+        
+        # Count total members in cohort
+        total = await assignments_collection.count_documents({'cohort_id': cohort_id})
+        
+        # Fetch paginated members
+        cursor = assignments_collection.find({'cohort_id': cohort_id}).skip(skip).limit(limit)
+        members_list = await cursor.to_list(length=limit)
+        
+        # Remove MongoDB _id field
+        for member in members_list:
+            member.pop('_id', None)
+        
+        page = (skip // limit) + 1 if limit > 0 else 1
+        
+        return CohortMembersResponse(
+            cohort_id=cohort_id,
+            cohort_name=cohort['cohort_name'],
+            total_members=total,
+            page=page,
+            limit=limit,
+            members=members_list
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching cohort members: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ========== ANALYTICS SUMMARY ENDPOINT ==========
+
+@router.get("/analytics/summary")
+async def get_analytics_summary():
+    """
+    Get high-level summary of households and cohorts.
+    
+    Returns:
+        Overview metrics for dashboard
+    """
+    try:
+        db = MongoDBManager.database
+        
+        # Household stats
+        households_collection = db['households']
+        total_households = await households_collection.count_documents({})
+        
+        high_risk_hh = await households_collection.count_documents({'risk_bucket': 'High Risk'})
+        medium_risk_hh = await households_collection.count_documents({'risk_bucket': 'Medium Risk'})
+        low_risk_hh = await households_collection.count_documents({'risk_bucket': 'Low Risk'})
+        safe_hh = await households_collection.count_documents({'risk_bucket': 'Safe'})
+        
+        # Get top at-risk households
+        top_at_risk_cursor = households_collection.find({}).sort('weighted_churn_probability', -1).limit(5)
+        top_at_risk = await top_at_risk_cursor.to_list(length=5)
+        for hh in top_at_risk:
+            hh.pop('_id', None)
+        
+        # Cohort stats
+        cohorts_collection = db['cohorts']
+        total_cohorts = await cohorts_collection.count_documents({})
+        
+        cohorts_cursor = cohorts_collection.find({}).sort('cohort_id', 1)
+        cohorts = await cohorts_cursor.to_list(length=None)
+        for c in cohorts:
+            c.pop('_id', None)
+        
+        return {
+            'households': {
+                'total': total_households,
+                'high_risk': high_risk_hh,
+                'medium_risk': medium_risk_hh,
+                'low_risk': low_risk_hh,
+                'safe': safe_hh,
+                'top_at_risk': top_at_risk
+            },
+            'cohorts': {
+                'total': total_cohorts,
+                'cohorts': cohorts
+            }
+        }
+    
+    except Exception as e:
+        logger.error(f"Error fetching analytics summary: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+
+
+
     """
     Generate an executive report (PDF or XLSX).
     

@@ -154,3 +154,84 @@ apiClient.interceptors.response.use(
     }
   );
 export default apiClient;
+
+// ========== HOUSEHOLD ENDPOINTS ==========
+
+export const getHouseholds = async (
+  skip: number = 0,
+  limit: number = 10,
+  riskLevel?: string,
+  sortBy: 'risk' | 'value' = 'risk'
+) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('skip', skip.toString());
+    params.append('limit', limit.toString());
+    if (riskLevel) params.append('risk_level', riskLevel);
+    params.append('sort_by', sortBy);
+
+    const response = await apiClient.get(`/households?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching households:', error);
+    throw error;
+  }
+};
+
+export const getHouseholdDetail = async (householdId: string) => {
+  try {
+    const response = await apiClient.get(`/household/${householdId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching household detail:', error);
+    throw error;
+  }
+};
+
+// ========== COHORT ENDPOINTS ==========
+
+export const getAllCohorts = async () => {
+  try {
+    const response = await apiClient.get('/cohorts');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching cohorts:', error);
+    throw error;
+  }
+};
+
+export const getCohortDetail = async (cohortId: number) => {
+  try {
+    const response = await apiClient.get(`/cohort/${cohortId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching cohort detail:', error);
+    throw error;
+  }
+};
+
+export const getCohortMembers = async (
+  cohortId: number,
+  skip: number = 0,
+  limit: number = 10
+) => {
+  try {
+    const response = await apiClient.get(
+      `/cohort/${cohortId}/members?skip=${skip}&limit=${limit}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching cohort members:', error);
+    throw error;
+  }
+};
+
+export const getAnalyticsSummary = async () => {
+  try {
+    const response = await apiClient.get('/analytics/summary');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching analytics summary:', error);
+    throw error;
+  }
+};

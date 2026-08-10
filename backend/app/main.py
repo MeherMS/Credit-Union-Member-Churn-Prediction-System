@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI):
         logger.info("Connecting to MongoDB Atlas...")
         await MongoDBManager.connect_db()
         logger.info("✅ Connected to MongoDB Atlas")
+        
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
         # Don't raise - API can still work without DB for predictions
