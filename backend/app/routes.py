@@ -386,7 +386,7 @@ async def get_member_profile(member_id: str):
         # Add default top_risk_factors if missing
         if 'top_risk_factors' not in prediction or not prediction['top_risk_factors']:
             prediction['top_risk_factors'] = ["Age", "Tenure", "Balance"]
-        
+        prediction = convert_nan_to_none(prediction)
         return MemberProfile(**prediction)
     
     except HTTPException:
