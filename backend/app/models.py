@@ -205,3 +205,77 @@ class CohortMembersResponse(BaseModel):
     page: int
     limit: int
     members: List[MemberCohortAssignment]
+
+
+    # ============================================================================
+# PRODUCT PREDICTION MODELS (Phase 9)
+# ============================================================================
+
+class ProductScore(BaseModel):
+    """Score for a single product adoption"""
+    has_product: int  # 0 or 1
+    adoption_probability: float  # 0.0 to 1.0
+    recommendation: str
+
+
+class ProductPredictionRequest(BaseModel):
+    """Product adoption prediction request (same features as churn model)"""
+    member_id: str
+    credit_score: int
+    country: str
+    gender: str
+    age: int
+    tenure: int
+    balance: float
+    products_number: int
+    credit_card: int  # 0 or 1 (existing ownership)
+    active_member: int
+    estimated_salary: float
+
+
+class ProductPredictionResponse(BaseModel):
+    """Product adoption prediction response"""
+    success: bool
+    member_id: str
+    churn_probability: float  # From churn model
+    products: dict  # Keys: "credit_card", "personal_loan", etc. Values: ProductScore
+    top_opportunity: str  # Product with highest adoption probability
+    message: str
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "member_id": "PROD_MEM_abc123",
+                "churn_probability": 0.23,
+                "products": {
+                    "credit_card": {
+                        "has_product": 1,
+                        "adoption_probability": 1.0,
+                        "recommendation": "Already has this product"
+                    },
+                    "personal_loan": {
+                        "has_product": 0,
+                        "adoption_probability": 0.45,
+                        "recommendation": "Good candidate for this product"
+                    },
+                    "investment": {
+                        "has_product": 0,
+                        "adoption_probability": 0.72,
+                        "recommendation": "⭐ High probability - recommend reaching out"
+                    },
+                    "mobile_banking": {
+                        "has_product": 0,
+                        "adoption_probability": 0.68,
+                        "recommendation": "⭐ High probability - recommend reaching out"
+                    },
+                    "premium_account": {
+                        "has_product": 0,
+                        "adoption_probability": 0.55,
+                        "recommendation": "Good candidate for this product"
+                    }
+                },
+                "top_opportunity": "investment",
+                "message": "Product adoption scored successfully. Top opportunity: investment (72%)"
+            }
+        }

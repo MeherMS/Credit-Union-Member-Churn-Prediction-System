@@ -40,7 +40,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span>All Members</span>
           </Link>
 
-          {/* NEW: Households & Cohorts Section */}
+          {/* NEW: Households & Cohorts & Products Section */}
           <div className="pt-4 border-t mt-4">
             <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Analytics</p>
             
@@ -59,6 +59,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Layers size={20} />
               <span>Cohorts</span>
             </Link>
+
+            <Link
+              href="/products"
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${isActive('/products')}`}
+            >
+              <Layers size={20} />
+              <span>Products</span>
+            </Link>
+
           </div>
 
           <div className="pt-4 border-t mt-4">

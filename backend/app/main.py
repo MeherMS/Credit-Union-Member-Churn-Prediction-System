@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-
+from app.product_scorer import ProductLeadScorer
 from app.config import settings
 from app.ml_pipeline import MLPipeline
 from app.database import MongoDBManager
@@ -48,7 +48,15 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
         # Don't raise - API can still work without DB for predictions
         logger.warning("⚠️  API will work without database (predictions only)")
-    
+    # In your lifespan startup section, after loading MLPipeline, add:
+
+# Load product adoption models
+    # Load product adoption models
+    try:
+        ProductLeadScorer.load_models()  # Uses relative path resolution automatically
+        logger.info("✓ Product adoption models loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load product models: {str(e)}")
     yield
     
     # ===== SHUTDOWN =====

@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime
 import pandas as pd
 import numpy as np
+from app.product_scorer import ProductLeadScorer
+
 
 from app.models import (
     PredictRequest, PredictionResponse, MemberProfile,
@@ -22,7 +24,7 @@ from app.models import (
     CohortResponse,
     AllCohortsResponse,
     MemberCohortAssignment,
-    CohortMembersResponse
+    CohortMembersResponse,ProductPredictionRequest, ProductPredictionResponse, ProductScore
 )
 from app.ml_pipeline import MLPipeline
 from app.database import MongoDBManager
@@ -916,7 +918,137 @@ async def get_analytics_summary():
 
 
 
-
+@router.post("/predict_products", response_model=dict)
+async def predict_products(request: ProductPredictionRequest):
+    """Predict product adoption probabilities for a member
+    
+    Scores member's likelihood to adopt each of 5 products:
+    - Credit Card (if doesn't own → scored, if owns → 100%)
+    - Personal Loan
+    - Investment
+    - Mobile Banking
+    - Premium Account
+    
+    Args:
+        request: Member features (same as churn prediction)
+        
+    Returns:
+        dict: Product scores + churn probability + top opportunity
+    """
+    try:
+        logger.info(f"Product prediction request: member age={request.age}, country={request.country}")
+        
+        # Convert request to dictionary
+        features_dict = request.dict()
+        
+        # Step 1: Get churn probability (reuse existing MLPipeline)
+        processed_features = MLPipeline.preprocess_features(features_dict)
+        churn_probability = MLPipeline.model.predict_proba(processed_features)[0][1]
+        logger.info(f"Churn probability: {churn_probability:.4f}")
+        
+        # Step 2: Score all products
+        product_scores_dict = ProductLeadScorer.score_all_products(features_dict, request.credit_card)
+        logger.info(f"Product scores: {product_scores_dict}")
+        
+        # Step 3: Generate recommendations and build response
+        products_response = {}
+        for product_name, probability in product_scores_dict.items():
+            # Determine if member already has this product
+            if product_name == "credit_card":
+                has_product = request.credit_card
+            else:
+                # For other products, we don't have existing ownership data yet
+                # (only credit_card exists in current data)
+                has_product = 0
+            
+            # Generate recommendation
+            recommendation = ProductLeadScorer.generate_recommendation(
+                product_name, probability, has_product
+            )
+            
+            # Build product score object
+            products_response[product_name] = {
+                "has_product": has_product,
+                "adoption_probability": round(float(probability), 4),
+                "recommendation": recommendation
+            }
+        
+        # Step 4: Identify top opportunity
+        top_opportunity = ProductLeadScorer.identify_top_opportunity(
+            product_scores_dict, request.credit_card
+        )
+        logger.info(f"Top opportunity: {top_opportunity}")
+        
+        # Step 5: Generate unique member ID
+        member_id = request.member_id
+        
+        # Step 6: Prepare data for MongoDB storage
+        prediction_data = {
+            "member_id": member_id,
+            # Original input features
+            "credit_score": request.credit_score,
+            "country": request.country,
+            "gender": request.gender,
+            "age": request.age,
+            "tenure": request.tenure,
+            "balance": request.balance,
+            "products_number": request.products_number,
+            "credit_card": request.credit_card,
+            "active_member": request.active_member,
+            "estimated_salary": request.estimated_salary,
+            # Prediction results
+            "churn_probability": float(churn_probability),
+            # Product predictions
+            "credit_card": {
+                "has_product": request.credit_card,
+                "adoption_probability": float(product_scores_dict["credit_card"]),
+                "recommendation": products_response["credit_card"]["recommendation"]
+            },
+            "personal_loan": {
+                "has_product": 0,
+                "adoption_probability": float(product_scores_dict["personal_loan"]),
+                "recommendation": products_response["personal_loan"]["recommendation"]
+            },
+            "investment": {
+                "has_product": 0,
+                "adoption_probability": float(product_scores_dict["investment"]),
+                "recommendation": products_response["investment"]["recommendation"]
+            },
+            "mobile_banking": {
+                "has_product": 0,
+                "adoption_probability": float(product_scores_dict["mobile_banking"]),
+                "recommendation": products_response["mobile_banking"]["recommendation"]
+            },
+            "premium_account": {
+                "has_product": 0,
+                "adoption_probability": float(product_scores_dict["premium_account"]),
+                "recommendation": products_response["premium_account"]["recommendation"]
+            },
+            "top_opportunity": top_opportunity,
+            "created_at": datetime.utcnow()
+        }
+        
+        # Step 7: Store to MongoDB (new collection: product_predictions)
+        try:
+            result = await MongoDBManager.database["product_predictions"].insert_one(prediction_data)
+            logger.info(f"Product prediction stored: {member_id}")
+        except Exception as e:
+            logger.error(f"Failed to store product prediction: {str(e)}")
+            # Don't fail the request, just log the error
+        
+        # Step 8: Return response
+        return {
+            "success": True,
+            "member_id": member_id,
+            "churn_probability": round(float(churn_probability), 4),
+            "products": products_response,
+            "top_opportunity": top_opportunity,
+            "message": f"Product adoption scored successfully. Top opportunity: {top_opportunity}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Product prediction error: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Product prediction failed: {str(e)}")
 
     """
     Generate an executive report (PDF or XLSX).

@@ -1,5 +1,6 @@
 // app/lib/api.ts
 import axios, { AxiosError } from 'axios';
+import { ProductPredictionResponse, MembersSearchResponse } from "@/app/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -235,3 +236,80 @@ export const getAnalyticsSummary = async () => {
     throw error;
   }
 };
+
+// ============================================================================
+// PRODUCT PREDICTION API FUNCTIONS (Phase 9)
+// ============================================================================
+
+/**
+ * Predict product adoption probabilities for a member
+ * @param features - Member features (same as churn prediction)
+ * @returns ProductPredictionResponse with all 5 product scores
+ */
+export async function predictProducts(features: {
+  member_id: string;
+  credit_score: number;
+  country: string;
+  gender: string;
+  age: number;
+  tenure: number;
+  balance: number;
+  products_number: number;
+  credit_card: number;
+  active_member: number;
+  estimated_salary: number;
+}): Promise<ProductPredictionResponse> {
+  try {
+    const response = await apiClient.post<ProductPredictionResponse>(
+      "/predict_products",
+      features
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Product prediction error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Search members by ID or name
+ * @param query - Search query (member ID or name)
+ * @param skip - Pagination offset
+ * @param limit - Results per page
+ * @returns List of matching members
+ */
+export async function searchMembers(
+  query: string,
+  skip: number = 0,
+  limit: number = 20
+): Promise<MembersSearchResponse> {
+  try {
+    const response = await apiClient.get<MembersSearchResponse>("/members", {
+      params: {
+        skip,
+        limit,
+        // Search is done server-side if backend supports it
+        // Otherwise we'll filter client-side
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Member search error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get member details by ID
+ * @param memberId - Member ID
+ * @returns Member details (for getting features to predict)
+ */
+export async function getMemberDetails(memberId: string): Promise<any> {
+  try {
+    const response = await apiClient.get(`/member/${memberId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Get member details error:", error);
+    throw error;
+  }
+}

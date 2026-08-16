@@ -124,3 +124,41 @@ export interface AnalyticsSummary {
     cohorts: Cohort[];
   };
 }
+
+// ============================================================================
+// PRODUCT PREDICTION TYPES (Phase 9)
+// ============================================================================
+
+export interface ProductScore {
+  has_product: number; // 0 or 1
+  adoption_probability: number; // 0.0 to 1.0
+  recommendation: string;
+}
+
+export interface ProductPredictionResponse {
+  success: boolean;
+  member_id: string;
+  churn_probability: number;
+  products: {
+    credit_card: ProductScore;
+    personal_loan: ProductScore;
+    investment: ProductScore;
+    mobile_banking: ProductScore;
+    premium_account: ProductScore;
+  };
+  top_opportunity: string;
+  message: string;
+}
+
+export interface ProductSearchMember {
+  member_id: string;
+  age: number;
+  country: string;
+  balance: number;
+  churn_probability: number;
+}
+
+export interface MembersSearchResponse {
+  total: number;
+  members: ProductSearchMember[];
+}
