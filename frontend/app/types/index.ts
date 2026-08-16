@@ -162,3 +162,19 @@ export interface MembersSearchResponse {
   total: number;
   members: ProductSearchMember[];
 }
+
+
+// Add this NEW interface for product predictions context
+export interface MemberForProducts {
+  member_id: string;
+  age: number;
+  country: string;
+  balance: number;
+  churn_probability: number;
+  gender?: string;
+  tenure?: number;
+  credit_score?: number;
+  products_number?: number;
+  active_member?: number;
+  estimated_salary?: number;
+}
