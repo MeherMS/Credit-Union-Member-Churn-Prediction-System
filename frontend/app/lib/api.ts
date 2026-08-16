@@ -313,3 +313,31 @@ export async function getMemberDetails(memberId: string): Promise<any> {
     throw error;
   }
 }
+
+/**
+ * Get members with optional filters
+ * @param filters - skip, limit, country, risk_level, search
+ * @returns List of members with pagination info
+ */
+export async function getMembersWithFilters(filters: {
+  skip?: number;
+  limit?: number;
+  country?: string;
+  risk_level?: string;
+  search?: string;
+}): Promise<any> {
+  try {
+    const params = new URLSearchParams();
+    if (filters.skip !== undefined) params.append("skip", filters.skip.toString());
+    if (filters.limit !== undefined) params.append("limit", filters.limit.toString());
+    if (filters.country) params.append("country", filters.country);
+    if (filters.risk_level) params.append("risk_level", filters.risk_level);
+    if (filters.search) params.append("search", filters.search);
+
+    const response = await apiClient.get(`/members?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error("Get members error:", error);
+    throw error;
+  }
+}

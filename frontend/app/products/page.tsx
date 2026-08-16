@@ -2,16 +2,44 @@
 
 import { useState } from "react";
 import { useProductSearch } from "@/app/hooks/useProductSearch";
+import { useMembersList } from "@/app/hooks/useMembersList";
 import { ProductSearchInput } from "@/app/components/ProductSearchInput";
+import { MembersListSelector } from "@/app/components/MembersListSelector";
 import { ProductsSummary } from "@/app/components/ProductsSummary";
 import { ProductScoreCard } from "@/app/components/ProductScoreCard";
 import { Loader } from "lucide-react";
+import { MemberForProducts  } from "@/app/types";
+import  Layout  from "@/app/components/Layout";
 
 export default function ProductsPage() {
   const { prediction, memberDetails, loading, error, searchTerm, handleSearch, clearSearch } =
     useProductSearch();
 
+  const {
+    members,
+    loading: membersLoading,
+    error: membersError,
+    page: currentPage,
+    totalPages,
+    country,
+    riskLevel,
+    searchId,
+    nextPage,
+    prevPage,
+    handleCountryChange,
+    handleRiskChange,
+    handleSearchChange,
+  } = useMembersList(15);
+
+  const [activeTab, setActiveTab] = useState<"search" | "browse" | "results">("browse");
+
+  const handleMemberSelect = (member: MemberForProducts) => {
+    handleSearch(member.member_id);
+    setActiveTab("results");
+  };
+
   return (
+    <Layout>
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-12">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
@@ -24,28 +52,85 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        {/* Search Section */}
-        <div className="mb-12 rounded-xl bg-white p-8 shadow-lg">
-          <h2 className="mb-6 text-2xl font-bold text-gray-900">Search Member</h2>
-          <ProductSearchInput
-            onSearch={handleSearch}
-            onClear={clearSearch}
-            isLoading={loading}
-            error={error}
-            searchValue={searchTerm}
-          />
+        {/* Tabs Navigation */}
+        <div className="mb-8 flex gap-2 border-b border-gray-300">
+          <button
+            onClick={() => setActiveTab("browse")}
+            className={`px-6 py-3 font-semibold transition-colors ${
+              activeTab === "browse"
+                ? "border-b-2 border-blue-500 text-blue-600"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            📋 Browse Members
+          </button>
+          <button
+            onClick={() => setActiveTab("search")}
+            className={`px-6 py-3 font-semibold transition-colors ${
+              activeTab === "search"
+                ? "border-b-2 border-blue-500 text-blue-600"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            🔍 Search Member
+          </button>
+          {prediction && (
+            <button
+              onClick={() => setActiveTab("results")}
+              className={`px-6 py-3 font-semibold transition-colors ${
+                activeTab === "results"
+                  ? "border-b-2 border-blue-500 text-blue-600"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              📊 Results
+            </button>
+          )}
         </div>
 
-        {/* Loading State */}
-        {loading && (
+        {/* TAB 1: Browse Members */}
+        {activeTab === "browse" && (
+          <MembersListSelector
+            members={members}
+            loading={membersLoading}
+            error={membersError}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            country={country}
+            riskLevel={riskLevel}
+            searchId={searchId}
+            onCountryChange={handleCountryChange}
+            onRiskChange={handleRiskChange}
+            onSearchChange={handleSearchChange}
+            onMemberSelect={handleMemberSelect}
+            onNextPage={nextPage}
+            onPrevPage={prevPage}
+          />
+        )}
+
+        {/* TAB 2: Search Member */}
+        {activeTab === "search" && (
+          <div className="rounded-xl bg-white p-8 shadow-lg">
+            <h2 className="mb-6 text-2xl font-bold text-gray-900">Search Member by ID</h2>
+            <ProductSearchInput
+              onSearch={handleSearch}
+              onClear={clearSearch}
+              isLoading={loading}
+              error={error}
+              searchValue={searchTerm}
+            />
+          </div>
+        )}
+
+        {/* TAB 3: Results */}
+        {activeTab === "results" && loading && (
           <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-white py-16 shadow-lg">
             <Loader className="h-12 w-12 animate-spin text-blue-500" />
             <p className="text-lg text-gray-600">Analyzing member profile and products...</p>
           </div>
         )}
 
-        {/* Results Section */}
-        {!loading && prediction && memberDetails && (
+        {activeTab === "results" && !loading && prediction && memberDetails && (
           <div className="space-y-8">
             {/* Member Profile Card */}
             <div className="rounded-xl bg-white p-8 shadow-lg">
@@ -194,10 +279,13 @@ export default function ProductsPage() {
             {/* Action Buttons */}
             <div className="flex flex-col gap-4 md:flex-row justify-center">
               <button
-                onClick={clearSearch}
+                onClick={() => {
+                  clearSearch();
+                  setActiveTab("browse");
+                }}
                 className="rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-semibold px-6 py-3 transition-colors"
               >
-                ← Search Another Member
+                ← Browse More Members
               </button>
               <button
                 onClick={() => window.print()}
@@ -208,18 +296,7 @@ export default function ProductsPage() {
             </div>
           </div>
         )}
-
-        {/* Empty State */}
-        {!loading && !prediction && !error && (
-          <div className="rounded-xl bg-white p-16 text-center shadow-lg">
-            <div className="mb-4 text-5xl">🔍</div>
-            <h2 className="mb-2 text-2xl font-bold text-gray-900">No Member Selected</h2>
-            <p className="text-gray-600">
-              Search for a member ID above to see their product adoption opportunities
-            </p>
-          </div>
-        )}
       </div>
     </div>
-  );
+    </Layout>);
 }
