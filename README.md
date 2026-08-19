@@ -18,6 +18,7 @@ This system analyzes credit union member data to identify churn risk, assigns ri
 
 - **Frontend Dashboard**: [Credit Union Dashboard](#) *(https://credit-union-member-churn-predictio-chi.vercel.app/)*
 - **Backend API Docs**: [Swagger UI](#) *(https://credit-union-member-churn-prediction.onrender.com)*
+- **Documentation**: *(https://github.com/MeherMS/Credit-Union-Member-Churn-Prediction-System/tree/main/Documentation)*
 
 ---
 
@@ -466,7 +467,10 @@ Detailed phase completion reports included:
 - `Phase_4_Frontend_Dashboard_-_Completion_Report.md`
 - `Phase_5_Integration___API_Connectivity_-_Completion_Report.md`
 - `Phase_6_Deployment_-_Completion_Report.md`
-- `credit_uninon_TECHNICAL_ROADMAP.md` - Full project specifications
+- `Single Member Prediction Feature - Implementation Summary`
+- `Phase 8 Household & Cohort Analytics - Completion Report`
+- `Phase 9 Lead Scoring & Product Adoption - Completion Report`
+- `credit_uninon_TECHNICAL_ROADMAP.md` - Full project specifications`
 
 ---
 
@@ -479,7 +483,7 @@ This project is open source for portfolio purposes.
 
 ## 👤 Author
 
-**Meher** - Data Scientist  
+**Meher** - Lead Data Scientist  
 Portfolio project showcasing end-to-end ML system development.
 
 ---
