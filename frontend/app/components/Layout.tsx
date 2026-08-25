@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Users, FileText, Upload, Home, Building2, Layers } from 'lucide-react';
+import { BarChart3, Users, FileText, Upload, Home, Building2, Layers, Shield } from 'lucide-react';
 import Footer from './Footer';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -95,6 +95,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               <FileText size={20} />
               <span>Reports</span>
+            </Link>
+          </div>
+
+          {/* Compliance Section */}
+          <div className="pt-4 border-t mt-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase px-4 mb-2">Compliance</p>
+
+            <Link
+              href="/ncua"
+              className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${isActive('/ncua')}`}
+            >
+              <Shield size={20} />
+              <span>NCUA Compliance Copilot</span>
             </Link>
           </div>
         </nav>
